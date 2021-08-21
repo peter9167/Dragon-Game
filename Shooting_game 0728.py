@@ -8,6 +8,7 @@ import pygame
 import sys
 import random
 from time import sleep
+import timeit
 
 #BLACK = (0, 0, 0)     #배경 색상 : 검정
 padWidth = 480
@@ -21,13 +22,15 @@ rockImage = ['rock01.png', 'rock02.png', 'rock03.png', 'rock04.png', 'rock05.png
              'rock21.png', 'rock22.png', 'rock23.png', 'rock24.png', 'rock25.png',\
              'rock26.png', 'rock27.png', 'rock28.png', 'rock29.png', 'rock20.png',]
 
+rockImage2 = []
+
 #게임 사용 사운드(뮤직, 음악) 호출
 explosionSound = ['explosion01.wav', 'explosion02.wav', 'explosion03.wav', 'explosion04.wav']
 
 #사용자 함수를 선언한다.
 #게임 메세지 출력 함수 선언
 def writeMessage(text):
-    global gamePad, gameOverSound
+    global gamePad, gameOverSound, time_count
 
     textfont = pygame.font.Font('NanumGothic.ttf', 60)
     text = textfont.render(text, True, (255, 0, 0))
@@ -35,7 +38,6 @@ def writeMessage(text):
     textpos.center = (padWidth / 2, padHeight / 2)
     gamePad.blit(text, textpos)
     pygame.display.update()
-
 
     pygame.mixer.music.stop()
     gameOverSound.play()
@@ -72,12 +74,32 @@ def writePassScore(count):
     #reder(출력 내용(str형), 표시 상태, 글자 색)
     gamePad.blit(text, (350, 0))
 
+#운석 스피드 계산 함수
+def writeSpeedScore(speed):
+    global gamePad
+
+    font = pygame.font.Font('NanumGothic.ttf', 20) #font 클래스에 Font함수 호출해서 나눔 고딕으로 폰트 설정
+    text = font.render('운석 스피드:' + str(int(speed)), True, (64, 244, 208))
+    #text 변수 안에 font 클래스를 이용해서 render 함수 호출해서 출력
+    #reder(출력 내용(str형), 표시 상태, 글자 색)
+    gamePad.blit(text, (10, 600))
+
+#게임 시간 계산 함수
+def writeTimeScore(time):
+    global gamePad
+
+    font = pygame.font.Font('NanumGothic.ttf', 20) #font 클래스에 Font함수 호출해서 나눔 고딕으로 폰트 설정
+    text = font.render('게임시간:' + str(int(time)), True, (255, 255, 255))
+    #text 변수 안에 font 클래스를 이용해서 render 함수 호출해서 출력
+    #reder(출력 내용(str형), 표시 상태, 글자 색)
+    gamePad.blit(text, (10, 25))
+
 def drawObject(obj, x, y):
     global gamePad
     gamePad.blit(obj, (x, y))
 
 def initGame():
-    global gamePad, clock, background, fighter, missile, explosion, missileSound, gameOverSound
+    global gamePad, clock, background, background2, fighter, missile, explosion, missileSound, gameOverSound, time_count
 
     pygame.init()
     gamePad = pygame.display.set_mode((padWidth, padHeight))
@@ -85,6 +107,7 @@ def initGame():
     clock = pygame.time.Clock()
 
     background = pygame.image.load('background.png')
+    background2 = pygame.image.load('background2.png')
     fighter = pygame.image.load('drangon.png')
     missile = pygame.image.load('fireboll.png')
     explosion = pygame.image.load('explosion.png')
@@ -96,9 +119,7 @@ def initGame():
 
 
 def runGame():
-    global gamePad, clock, background, fighter, missile, rock, explosion, missileSound
-
-
+    global gamePad, clock, background, background2, fighter, missile, rock, explosion, missileSound, time_count
 
     fighterSize = fighter.get_rect().size
     fighterWidth = fighterSize[0]
@@ -131,7 +152,7 @@ def runGame():
 
     onGame = True #게임 계속 실행
     while onGame:
-
+        time_count = timeit.default_timer()  # 시작 시간 체크
         for event in pygame.event.get():
             if event.type in [pygame.QUIT]:
                 pygame.quit()
@@ -163,23 +184,38 @@ def runGame():
                     fighterX = 0
                     fighterY = 0
 
+        if shotCount >= 20:
+            drawObject(background2, 0, 0)  # 배경 출력
+        elif shotCount >= 40:
+            drawObject(background2, 0, 0)  # 배경 출력
 
+        drawObject(background, 0, 0)  # 배경 출력
 
+        fx += fighterX
+        fy += fighterY
+        if fx < 0:
+            fx = 0
+        elif fx > padWidth - fighterWidth:
+            fx = padWidth - fighterWidth
+        if fy < 0:
+            fy = 0
+        elif fy > padHeight - fighterHeight:
+            fy = padHeight - fighterHeight
 
+        # 익룡이 운석에 맞았는지 검사하는 부분
+        if fy < rockY + rockHeight:
+            if (rockX > fx and rockX < fx + fighterWidth) or \
+                    (rockX + rockWidth > fx and rockX + rockWidth < fx + fighterWidth):
+                f_crash()
 
-        #gamePad.fill(BLACK)
-        drawObject(background, 0, 0) #배경 출력
-        drawObject(fighter, fx, fy) #비행기 출력
+        drawObject(fighter, fx, fy)  # 비행기 출력
 
         if len(missileXY) != 0: #화면 끝, Y좌표가 0이 되지 않으면 실행 코드
-
             for i, bxy in enumerate(missileXY): #missileXY값을 i, bxy 값으로 튜플형태로 반환
                 #enumerate:인덱스 번호와 컬렉션의 원소를 tuple형태로 반환합니다.
                 bxy[1] -= 10
-                '''
-                bxy[1]값 = by값과 같다. 그러니깐 미사일Y값을 지정해주기 bxy를 선언
-                그래서 bxy에 by값에 -= 10을 한거
-                '''
+                #bxy[1]값 = by값과 같다. 그러니깐 미사일Y값을 지정해주기 bxy를 선언
+                #그래서 bxy에 by값에 -= 10을 한거
                 missileXY[i][1] = bxy[1] #최종적으로 미사일Y값에 bxy[1]을 넣어준다.
 
                 if bxy[1] < rockY: #bxy[0] = bx값과 같다.
@@ -193,16 +229,21 @@ def runGame():
                         okShot = True #okShot True로 정의하면서 맞았다는 신호 보내서 어디선가 신호를 받음
                         shotCount += 1 #점수 카운트 + 1
 
-                if bxy[1] < 0: #bxy[1]이 0보다 작으면
+                if bxy[1] <= 0: #bxy[1]이 0보다 작으면
                     try:
                         missileXY.remove(bxy) #bxy값 삭제
                     except: #오류나면 실행해야 되는데 솔직히 try이가 코드 한줄인데 오류나겠냐?
                         pass #그러니깐 그냥 킵
 
+        if len(missileXY) != 0:
             for bx, by in missileXY: #미사일 이미지 출력 코드 알쥐?
                 drawObject(missile, bx, by)
 
+        writeShotScore(shotCount)
+
         rockY += rockSpeed #이거 없으면 미사일 안움직임. 일단 rockY값에 rockSpeed 값넣어서 2씩 증가
+
+
         if rockY > padHeight: #운석이 화면을 넘어가면, 화면 좌표보다 커지면
             rock = pygame.image.load(random.choice(rockImage)) #이미지 로드
             rockSize = rock.get_rect().size #운석 사이즈 변수
@@ -213,9 +254,14 @@ def runGame():
             rockY = 0 # rockY 좌표는 0으로 하면서 계속 떨어질 수 있도록
             rockPassed += 1
 
+        if rockPassed == 3:
+            gameOver()
+
         #놓친 운석수 표시
+        writeSpeedScore(rockSpeed)
+        writeTimeScore(time_count)
+
         writePassScore(rockPassed)
-        writeShotScore(shotCount)
 
         if okShot == True:
             drawObject(explosion, rockX, rockY)
@@ -234,30 +280,10 @@ def runGame():
             rockSpeed += 0.2
             if rockSpeed > 10:
                 rockSpeed = 10
-
         drawObject(rock, rockX, rockY)
 
-        fx += fighterX
-        fy += fighterY
-        if fx < 0:
-            fx = 0
-        elif fx > padWidth - fighterWidth:
-            fx = padWidth - fighterWidth
-        if fy < 0:
-            fy = 0
-        elif fy > padHeight - fighterHeight:
-            fy = padHeight - fighterHeight
-
-        #익룡이 운석에 맞았는지 검사하는 부분
-        if fy < rockY + rockHeight:
-            if (rockX > fx and rockX < fx +fighterWidth) or \
-                    (rockX + rockWidth > fx and rockX + rockWidth < fx + fighterWidth):
-                f_crash()
-
-        if rockPassed == 3:
-            gameOver()
-
         pygame.display.update()
+
         clock.tick(60)
 
     pygame.quit()
